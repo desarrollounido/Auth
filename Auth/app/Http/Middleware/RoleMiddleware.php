@@ -11,13 +11,6 @@ class RoleMiddleware
 {
     $user = $request->user('api');  
 
-    if (!$user) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Usuario no autenticado'
-        ], 401);
-    }
-
     $userRole = $user->roles->nombre_rol;
 
     if (!in_array($userRole, $roles)) {
