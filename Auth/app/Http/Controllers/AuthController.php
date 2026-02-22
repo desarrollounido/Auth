@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;    
 use App\Http\Requests\AuthRequest as LoginRequest;
 use App\Services\AuthService;
+use Tymon\JWTAuth\JWTGuard;
 
 
 
@@ -42,5 +43,13 @@ class AuthController extends Controller
 
             return response()->json(['error' => $errorMessage], $statusCode);
         }
+    }
+
+    public function logout()
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Sesión cerrada correctamente'
+        ], 200)->cookie('token', '', -1);
     }
 }

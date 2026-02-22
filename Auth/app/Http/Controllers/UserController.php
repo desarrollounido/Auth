@@ -6,7 +6,6 @@ use App\Services\UserServices;
 use App\Http\Requests\UserRequest;
 use Illuminate\Support\Facades\Gate;
 
-
 class UserController extends Controller
 {
     protected $userService;
@@ -16,19 +15,35 @@ class UserController extends Controller
         $this->userService = $userService;
     }
 
-    // LISTAR USUARIOS
+    // LISTAR USUARIOS — solo admin
     public function index()
     {
+        $userAuth = request()->user('api');
+
+        if (!$userAuth) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Debes estar autenticado'
+            ], 401);
+        }
+
+        if ($userAuth->roles->nombre_rol !== 'administrador') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo los administradores pueden listar usuarios'
+            ], 403);
+        }
+
         $data = $this->userService->getAllUsers();
 
         return response()->json([
             'success' => true,
             'message' => 'Usuarios Listados Correctamente',
-            'data' => $data
+            'data'    => $data
         ], 200);
     }
 
-
+    // VER USUARIO — admin ve cualquiera, otros solo a sí mismos
     public function show($id)
     {
         $usuario = $this->userService->getUserById($id);
@@ -54,14 +69,26 @@ class UserController extends Controller
         ], 200);
     }
 
-    // CREAR USUARIO
+    // CREAR USUARIO — público para roles normales, solo admin puede crear admins
     public function store(UserRequest $request)
     {
-        if (Gate::denies('create', request()->user('api')) && $request['cod_rol'] === 1) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No cuentas con permisos para la creación de usuarios'
-            ], 403);
+        $userAuth = request()->user('api');
+        $codRol   = (int) $request['cod_rol'];
+
+        if ($codRol === 1) {
+            if (!$userAuth) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debes estar autenticado para crear un administrador'
+                ], 401);
+            }
+
+            if ($userAuth->roles->nombre_rol !== 'administrador') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo los administradores pueden crear otros administradores'
+                ], 403);
+            }
         }
 
         $data = $this->userService->createUser($request->validated());
@@ -69,23 +96,24 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Usuario Creado Correctamente',
-            'data' => $data
+            'data'    => $data
         ], 201);
     }
 
-    // ACTUALIZAR USUARIO
+    // ACTUALIZAR USUARIO — admin actualiza a todos, otros solo a sí mismos
+    // nadie que no sea admin puede modificar a un admin
     public function update(UserRequest $request, $id)
     {
-        $data = $this->userService->getUserById($id);
+        $usuario = $this->userService->getUserById($id);
 
-        if (!$data) {
+        if (!$usuario) {
             return response()->json([
                 'success' => false,
                 'message' => 'Usuario No Encontrado'
             ], 404);
         }
 
-        if (Gate::denies('update', $data)) {
+        if (Gate::denies('update', $usuario)) {
             return response()->json([
                 'success' => false,
                 'message' => 'No tienes permisos para actualizar este usuario'
@@ -97,14 +125,32 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Usuario Actualizado Correctamente',
-            'data' => $updated
+            'data'    => $updated
         ], 200);
     }
 
-    // ELIMINAR USUARIO
+    // ELIMINAR USUARIO — solo admin
     public function destroy($id)
     {
-        if (Gate::denies('delete',request()->user('api'))) {
+        $userAuth = request()->user('api');
+
+        if (!$userAuth) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Debes estar autenticado para eliminar usuarios'
+            ], 401);
+        }
+
+        $usuario = $this->userService->getUserById($id);
+
+        if (!$usuario) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario No Encontrado'
+            ], 404);
+        }
+
+        if (Gate::denies('delete', $usuario)) {
             return response()->json([
                 'success' => false,
                 'message' => 'No tienes permisos para eliminar este usuario'
@@ -116,8 +162,8 @@ class UserController extends Controller
         if (!$result) {
             return response()->json([
                 'success' => false,
-                'message' => 'Usuario No Encontrado'
-            ], 404);
+                'message' => 'Error al eliminar el usuario'
+            ], 500);
         }
 
         return response()->json([

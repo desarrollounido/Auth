@@ -6,29 +6,47 @@ use App\Models\ModelUser;
 
 class UserPolicy
 {
-    // VER USUARIO
-    public function view(ModelUser $userAuth, ModelUser $userRequest): bool
+    // VER USUARIO — admin ve todos, otros solo a sí mismos
+    public function view(?ModelUser $userAuth, ModelUser $userRequest): bool
     {
-        return $userAuth->id === $userRequest->id
+        if (!$userAuth) {
+            return false;
+        }
+
+        return $userAuth->cod_usuario === $userRequest->cod_usuario
             || $userAuth->roles->nombre_rol === 'administrador';
     }
 
-    // CREAR USUARIO
-    public function create(ModelUser $userAuth): bool
+    // CREAR USUARIO — admin crea cualquiera, público puede registrarse (validación extra en controller)
+    public function create(?ModelUser $userAuth = null): bool
     {
-        return $userAuth->roles->nombre_rol === 'administrador';
+        return true;
     }
 
-    // ACTUALIZAR USUARIO
-    public function update(ModelUser $userAuth, ModelUser $userRequest): bool
+    // ACTUALIZAR USUARIO — admin actualiza a todos, otros solo a sí mismos
+    // admin NO puede ser actualizado por otro rol que no sea admin
+    public function update(?ModelUser $userAuth, ModelUser $userRequest): bool
     {
-        return $userAuth->id === $userRequest->id
+        if (!$userAuth) {
+            return false;
+        }
+
+        // Si el usuario a actualizar es admin, solo otro admin puede hacerlo
+        if ($userRequest->roles->nombre_rol === 'administrador') {
+            return $userAuth->roles->nombre_rol === 'administrador';
+        }
+
+        return $userAuth->cod_usuario === $userRequest->cod_usuario
             || $userAuth->roles->nombre_rol === 'administrador';
     }
 
-    // ELIMINAR USUARIO
-    public function delete(ModelUser $userAuth): bool
+    // ELIMINAR USUARIO — solo admin
+    public function delete(?ModelUser $userAuth, ModelUser $userRequest): bool
     {
+        if (!$userAuth) {
+            return false;
+        }
+
         return $userAuth->roles->nombre_rol === 'administrador';
     }
 }

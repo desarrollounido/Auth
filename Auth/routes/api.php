@@ -16,7 +16,7 @@ Route::prefix('v1')->group(function () {
     // Rutas protegidas con JWT
     Route::middleware('auth.api')->group(function () {
 
-        
+        Route::post('/logout', [AuthController::class, 'logout']);
 
         Route::middleware('role:administrador')->group(function () {
             // Rutas para administración de usuarios
